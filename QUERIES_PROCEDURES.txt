@@ -1,0 +1,103 @@
+    1)  Procedure to update the stock details and accordingly the items are added::::
+______________________________________________________________________________
+CREATE OR REPLACE PROCEDURE Update_stock is
+ Num NUMBER :=0;
+ p_item_category_id item_categories.item_category_id%type;
+ p_qty NUMBER;
+ Price NUMBER;
+ p number(5);
+  BEGIN
+      p_item_category_id:=&p_item_category_id;
+      SELECT item_category_id INTO p FROM item_categories WHERE item_category_id=p_item_category_id;
+      p_qty:=&p_qty;
+      Price:=&Price;
+      UPDATE stock_details SET total_quantity=total_quantity+p_qty where item_category_id=p_item_category_id;
+      UPDATE stock_details SET balance_qty=balance_qty+p_qty where item_category_id=p_item_category_id;
+  FOR i in 1 .. p_qty
+  LOOP
+       INSERT INTO item_details VALUES(s2.nextval,p_item_category_id,price);
+       Num:=Num+1;
+  END LOOP;
+       EXCEPTION
+       WHEN no_data_found THEN
+       dbms_output.put_line('------------------------------');
+       dbms_output.put_line('Exception! Enter valid item category id');
+       dbms_output.put_line('------------------------------');
+ END;
+
+
+
+    2)  Trigger for not allowed to change the salary ::::
+
+CREATE OR REPLACE TRIGGER Not_allowed
+
+BEFORE UPDATE ON WORKER
+
+BEGIN
+RAISE_APPLICATION_ERROR(-20500,'Not allowed to change the salary');
+END;
+
+
+
+     3)Procdure to retrive the details of a particular bill_id:::
+
+ CREATE OR REPLACE PROCEDURE Purchased_item_details IS
+ P_Bill_id customer.bill_id%type;
+ CURSOR C1 IS
+ SELECT c.Customer_name,i.Item_Id,c.total_Amount,ic.Item_name FROM Customer c JOIN purchase_item_details p ON(c.bill_id=p.bill_id)
+ JOIN Item_details i ON(p.item_id=i.item_id) JOIN item_categories ic ON(ic.item_category_id=i.item_category_id) WHERE p.bill_id=&p_bill_id;
+ v_rec c1%rowtype;
+   BEGIN
+         OPEN C1;
+         LOOP
+         FETCH C1 INTO V_REC ;
+         EXIT WHEN C1%notfound;
+           DBMS_OUTPUT.PUT_LINE('Customer name :'||v_rec.Customer_name);
+           DBMS_OUTPUT.PUT_LINE('Item_name     :'||v_rec.Item_name);
+           DBMS_OUTPUT.PUT_LINE('Total_Amount  :'||v_rec.total_Amount);
+
+         END LOOP;
+         CLOSE C1;
+   END;
+
+     4)   FUNCTION TO CALCULATE THE TOTAL AMOUNT OF ALL ITEMS PURCHASED:::
+
+ CREATE OR REPLACE FUNCTION total_amount RETURN number IS
+ V NUMBER(7);
+ BEGIN
+ SELECT SUM(total_amount)  into v FROM customer ;
+ return v;
+ END;
+
+    5)to show the items which are not purchased but those are in item details 
+  
+    --> select * from item_details where item_id not in(select i.item_id from purchase_item_details p join item_details i on(i.item_id=p.item_id));
+    --> select i.item_id,c.item_name from item_details i join item_categories c on (i.item_category_id=c.item_category_id) 
+                            where item_id not in(select i.item_id from purchase_item_details p join item_details i on(i.item_id=p.item_id));
+6)
+ CREATE OR REPLACE procedure date_pro is
+ p_date date;
+ cursor c1 is
+ select c.customer_name,ic.item_name,c.total_amount,i.item_id
+ from customer c join purchase_item_details p on(c.bill_id=p.bill_id)
+                 join item_details i on(p.item_id=i.item_id)  join item_categories ic on(i.item_category_id=ic.item_category_id) where c.date_of_purchase=&p_date;
+ v_rec c1%rowtype;
+ begin
+ dbms_output.put_line('--ITEM DETAILS PURCHASED ON :'||&P_DATE||'--');
+ open c1;
+ loop
+ dbms_output.put_line('.');
+ fetch c1 into v_rec;
+ exit when c1%notfound;
+   dbms_output.put_line(' * Customer name:'||v_rec.customer_name);
+   dbms_output.put_line('* Item name     :'||v_rec.item_name);
+   dbms_output.put_line('* Total amount  :'||v_rec.total_amount);
+   dbms_output.put_line('* item id       :'||v_rec.item_id);
+ end loop;
+ EXCEPTION
+       WHEN no_data_found THEN
+       dbms_output.put_line('------------------------------');
+       dbms_output.put_line('Exception! Enter valid date');
+       dbms_output.put_line('------------------------------');
+ close c1;
+end;
